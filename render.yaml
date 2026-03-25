@@ -1,0 +1,64 @@
+services:
+  # ─── User Service ──────────────────────────────────────────────
+  - type: web
+    name: ledgermind-user-service
+    runtime: python
+    rootDir: user_service
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        # Replace with your Render URL after first deploy, e.g.:
+        # value: ledgermind-user-service.onrender.com
+        value: "*"
+      - key: DATABASE_URL
+        # Paste your Supabase "Transaction" (pooler) connection string here
+        # Format: postgresql://USER:PASSWORD@HOST:PORT/DB?sslmode=require
+        sync: false
+      - key: SERVICE_SECRET_KEY
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        # Add your frontend URL(s) here
+        value: "http://localhost:3000"
+
+  # ─── Transaction Service ────────────────────────────────────────
+  - type: web
+    name: ledgermind-transaction-service
+    runtime: python
+    rootDir: transaction_service
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        # Paste your Supabase connection string here (can be same or separate DB)
+        sync: false
+      - key: SERVICE_SECRET_KEY
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SERVICE_SECRET_KEY
+      - key: USER_SERVICE_URL
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          property: host
+      - key: AI_SERVICE_URL
+        value: "http://localhost:8003"

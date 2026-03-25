@@ -1,0 +1,61 @@
+"""
+Django settings for API Gateway Service.
+"""
+import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+SHARED_DIR = BASE_DIR.parent
+sys.path.insert(0, str(SHARED_DIR))
+
+# Load root .env file
+load_dotenv(SHARED_DIR / '.env')
+
+SECRET_KEY = os.environ.get('SECRET_KEY', 'api-gateway-dev-secret-key')
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+
+INSTALLED_APPS = [
+    'django.contrib.staticfiles',
+    'corsheaders',
+    'gateway.apps.GatewayConfig'
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+]
+
+ROOT_URLCONF = 'config.urls'
+
+TEMPLATES = []
+WSGI_APPLICATION = 'config.wsgi.application'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+} 
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+STATIC_URL = 'static/'
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Service URLs mapped to their prefixes
+SERVICE_MAP = {
+    'users': os.environ.get('USER_SERVICE_URL', 'http://localhost:8001'),
+    'businesses': os.environ.get('USER_SERVICE_URL', 'http://localhost:8001'),
+    'transactions': os.environ.get('TRANSACTION_SERVICE_URL', 'http://localhost:8002'),
+    'categories': os.environ.get('TRANSACTION_SERVICE_URL', 'http://localhost:8002'),
+    'categorize': os.environ.get('AI_SERVICE_URL', 'http://localhost:8003'),
+    'analytics': os.environ.get('ANALYTICS_SERVICE_URL', 'http://localhost:8004'),
+    'payments': os.environ.get('PAYMENT_SERVICE_URL', 'http://localhost:8005'),
+}
