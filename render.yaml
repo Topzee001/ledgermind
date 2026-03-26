@@ -64,3 +64,156 @@ services:
           property: host
       - key: AI_SERVICE_URL
         value: "http://localhost:8003"
+
+  # ─── Payment Service ────────────────────────────────────────────
+  - type: web
+    name: ledgermind-payment-service
+    runtime: python
+    plan: free
+    rootDir: payment_service
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_SECRET_KEY
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SERVICE_SECRET_KEY
+      - key: TRANSACTION_SERVICE_URL
+        fromService:
+          name: ledgermind-transaction-service
+          type: web
+          property: host
+      - key: ISW_CLIENT_ID
+        sync: false
+      - key: ISW_SECRET_KEY
+        sync: false
+      - key: ISW_ENV
+        value: "sandbox"
+      - key: ISW_MERCHANT_CODE
+        sync: false
+
+  # ─── Analytics Service ──────────────────────────────────────────
+  - type: web
+    name: ledgermind-analytics-service
+    runtime: python
+    plan: free
+    rootDir: analytics_service
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_SECRET_KEY
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SERVICE_SECRET_KEY
+      - key: TRANSACTION_SERVICE_URL
+        fromService:
+          name: ledgermind-transaction-service
+          type: web
+          property: host
+
+  # ─── AI Service ───────────────────────────────────────────────
+  - type: web
+    name: ledgermind-ai-service
+    runtime: python
+    plan: free
+    rootDir: ai_service
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_SECRET_KEY
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SERVICE_SECRET_KEY
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # ─── API Gateway ────────────────────────────────────────────────
+  - type: web
+    name: ledgermind-api-gateway
+    runtime: python
+    plan: free
+    rootDir: api_gateway
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        sync: false
+        
+      # The Gateway needs every service URL to route to them
+      - key: USER_SERVICE_URL
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          property: host
+      - key: TRANSACTION_SERVICE_URL
+        fromService:
+          name: ledgermind-transaction-service
+          type: web
+          property: host
+      - key: AI_SERVICE_URL
+        fromService:
+          name: ledgermind-ai-service
+          type: web
+          property: host
+      - key: ANALYTICS_SERVICE_URL
+        fromService:
+          name: ledgermind-analytics-service
+          type: web
+          property: host
+      - key: PAYMENT_SERVICE_URL
+        fromService:
+          name: ledgermind-payment-service
+          type: web
+          property: host
+
+
+

@@ -6,7 +6,12 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
 from .models import Payment
-from .serializers import PaymentSerializer, InitiatePaymentSerializer
+from .serializers import (
+    PaymentSerializer, 
+    InitiatePaymentSerializer,
+    AuthenticateOTPSerializer,
+    VerifyPaymentSerializer
+)
 from .services import InterswitchService
 from shared.permissions import IsAuthenticatedUser
 
@@ -27,14 +32,17 @@ class InitiatePaymentView(generics.CreateAPIView):
         amount = serializer.validated_data['amount']
         description = serializer.validated_data['description']
         callback_url = serializer.validated_data['callback_url']
+        auth_data = serializer.validated_data['auth_data']
+        customer_id = serializer.validated_data['customer_id']
         
         # Unique internal reference
         reference = f"LDG-{uuid.uuid4().hex[:12].upper()}"
         
-        # In a real scenario, we'd reach out to Interswitch here to get a payment URL
-        # For Hackathon testing, if credentials aren't fully set up, we mock the success link
-        isw_response = InterswitchService.initiate_payment(float(amount), reference, callback_url)
+        isw_response = InterswitchService.initiate_payment(
+            float(amount), reference, callback_url, auth_data, customer_id
+        )
         
+        # By default, a fallback mock URL
         payment_url = f"https://payment.sandbox.interswitchng.com/pay?ref={reference}"
         if isw_response and 'redirectUrl' in isw_response:
             payment_url = isw_response['redirectUrl']
@@ -53,9 +61,96 @@ class InitiatePaymentView(generics.CreateAPIView):
             'message': 'Payment initiated successfully',
             'data': {
                 'payment': PaymentSerializer(payment).data,
+                'isw_response': isw_response,  # Pass raw response so frontend knows if it got "T0" vs "00"
                 'payment_url': payment_url
             }
         }, status=status.HTTP_201_CREATED)
+
+class AuthenticateOTPView(generics.CreateAPIView):
+    """
+    Authenticate OTP for a pending card transaction.
+    
+    POST /api/v1/payments/authenticate-otp/
+    """
+    serializer_class = AuthenticateOTPSerializer
+    permission_classes = [IsAuthenticatedUser]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reference = serializer.validated_data['reference']
+        payment_id = serializer.validated_data['payment_id']
+        transaction_id = serializer.validated_data['transaction_id']
+        otp = serializer.validated_data['otp']
+
+        # Get the internal payment record
+        try:
+            payment = Payment.objects.get(reference=reference)
+        except Payment.DoesNotExist:
+            return Response({'success': False, 'message': 'Payment not found'}, status=404)
+
+        # Call the ISW service
+        isw_response = InterswitchService.authenticate_otp(payment_id, otp, transaction_id)
+
+        if isw_response and isw_response.get('responseCode') == "00":
+            return Response({
+                'success': True,
+                'message': 'OTP Authenticated successfully',
+                'data': isw_response
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': 'OTP Authentication failed',
+                'data': isw_response
+            }, status=400)
+
+
+class VerifyPaymentView(generics.CreateAPIView):
+    """
+    Verify the final status of a payment with Interswitch.
+    
+    POST /api/v1/payments/verify/
+    """
+    serializer_class = VerifyPaymentSerializer
+    permission_classes = [IsAuthenticatedUser]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reference = serializer.validated_data['reference']
+        amount = serializer.validated_data['amount']
+
+        try:
+            payment = Payment.objects.get(reference=reference)
+        except Payment.DoesNotExist:
+            return Response({'success': False, 'message': 'Payment not found'}, status=404)
+
+        isw_response = InterswitchService.verify_transaction(reference, float(amount))
+
+        if isw_response and isw_response.get('ResponseCode') == "00":
+            payment.status = 'success'
+            payment.interswitch_ref = isw_response.get('PaymentReference', '')
+            payment.save()
+            
+            return Response({
+                'success': True,
+                'message': 'Payment verified successfully',
+                'data': {
+                    'payment': PaymentSerializer(payment).data,
+                    'isw_response': isw_response
+                }
+            })
+        else:
+            payment.status = 'failed'
+            payment.save()
+            return Response({
+                'success': False,
+                'message': 'Payment verification failed or not approved',
+                'data': isw_response
+            }, status=400)
 
 
 class InterswitchWebhookView(APIView):

@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_DIR = BASE_DIR.parent
@@ -32,6 +33,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,18 +63,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database - SQLite for dev, PostgreSQL (Supabase) for prod via DATABASE_URL
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
@@ -98,3 +113,5 @@ ISW_CLIENT_ID = os.environ.get('ISW_CLIENT_ID', 'dummy_client_id')
 ISW_SECRET_KEY = os.environ.get('ISW_SECRET_KEY', 'dummy_secret_key')
 ISW_ENV = os.environ.get('ISW_ENV', 'sandbox') # sandbox or prod
 ISW_BASE_URL = 'https://saturn.interswitchng.com' if ISW_ENV == 'prod' else 'https://qa.interswitchng.com'
+ISW_MERCHANT_CODE = os.environ.get('ISW_MERCHANT_CODE', 'MX6072')  # A common test merchant code
+
