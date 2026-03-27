@@ -85,7 +85,7 @@ class InterswitchService:
         return None
 
     @staticmethod
-    def authenticate_otp(payment_id, otp, transaction_id):
+    def authenticate_otp(payment_id, otp, transaction_id, eci_flag=None):
         """
         Step 2 of card payment: Submit OTP entered by the customer.
         Called only when initiate_payment() returns responseCode "T0"
@@ -111,6 +111,9 @@ class InterswitchService:
             "otp": str(otp),
             "transactionId": str(transaction_id),
         }
+        
+        if eci_flag:
+            payload["eciFlag"] = str(eci_flag)
 
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=10)

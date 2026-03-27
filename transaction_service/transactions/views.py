@@ -11,7 +11,7 @@ from django.db import transaction
 from .models import Transaction
 from categories.models import Category
 from .serializers import TransactionSerializer, TransactionUploadSerializer
-from .services import categorize_transaction_via_ai
+from .services import categorize_transaction_via_ai, categorize_bulk_via_ai
 
 
 class TransactionListCreateView(generics.ListCreateAPIView):
@@ -142,13 +142,12 @@ class TransactionCSVUploadView(generics.GenericAPIView):
         io_string = io.StringIO(decoded_file)
         reader = csv.DictReader(io_string)
         
-        transactions_to_create = []
+        raw_rows = []
         errors = []
         
         for idx, row in enumerate(reader, start=2):
             try:
-                # Expecting type, amount, date, description
-                type_val = row.get('type', 'expense').lower()
+                type_val = row.get('type', 'expense').lower() or 'expense'
                 amount_val = float(row.get('amount', 0))
                 date_val = row.get('date')
                 desc_val = row.get('description', '')
@@ -157,24 +156,53 @@ class TransactionCSVUploadView(generics.GenericAPIView):
                     errors.append(f"Row {idx}: Missing date")
                     continue
                     
-                t = Transaction(
-                    business_id=business_id,
-                    type=type_val,
-                    amount=amount_val,
-                    date=date_val,
-                    description=desc_val,
-                    source='csv'
-                )
-                transactions_to_create.append(t)
+                raw_rows.append({
+                    'type': type_val,
+                    'amount': amount_val,
+                    'date': date_val,
+                    'description': desc_val,
+                    'idx': idx
+                })
             except Exception as e:
                 errors.append(f"Row {idx}: Data error - {str(e)}")
-                
+        
+        if not raw_rows:
+            return Response({
+                'success': False,
+                'message': 'No valid transactions found in CSV',
+                'errors': errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Bulk categorize via AI
+        ai_data = [{'description': r['description'], 'amount': r['amount'], 'type': r['type']} for r in raw_rows]
+        categorized_results = categorize_bulk_via_ai(ai_data, business_id)
+        
+        transactions_to_create = []
+        for i, row in enumerate(raw_rows):
+            cat_id = None
+            ai_flag = False
+            if i < len(categorized_results):
+                cat_id = categorized_results[i].get('id')
+                ai_flag = True if cat_id else False
+            
+            t = Transaction(
+                business_id=business_id,
+                type=row['type'],
+                amount=row['amount'],
+                date=row['date'],
+                description=row['description'],
+                category_id=cat_id,
+                ai_categorized=ai_flag,
+                source='csv'
+            )
+            transactions_to_create.append(t)
+            
         if transactions_to_create:
             with transaction.atomic():
                 Transaction.objects.bulk_create(transactions_to_create)
                 
         return Response({
             'success': True,
-            'message': f'Imported {len(transactions_to_create)} transactions. {len(errors)} errors.',
+            'message': f'Imported and AI-categorized {len(transactions_to_create)} transactions. {len(errors)} errors.',
             'errors': errors
-        }, status=status.HTTP_201_CREATED if transactions_to_create else status.HTTP_400_BAD_REQUEST)
+        }, status=status.HTTP_201_CREATED)

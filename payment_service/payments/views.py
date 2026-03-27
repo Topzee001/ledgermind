@@ -83,6 +83,7 @@ class AuthenticateOTPView(generics.CreateAPIView):
         payment_id = serializer.validated_data['payment_id']
         transaction_id = serializer.validated_data['transaction_id']
         otp = serializer.validated_data['otp']
+        eci_flag = serializer.validated_data.get('eci_flag')
 
         # Get the internal payment record
         try:
@@ -91,7 +92,7 @@ class AuthenticateOTPView(generics.CreateAPIView):
             return Response({'success': False, 'message': 'Payment not found'}, status=404)
 
         # Call the ISW service
-        isw_response = InterswitchService.authenticate_otp(payment_id, otp, transaction_id)
+        isw_response = InterswitchService.authenticate_otp(payment_id, otp, transaction_id, eci_flag=eci_flag)
 
         if isw_response and isw_response.get('responseCode') == "00":
             return Response({

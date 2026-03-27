@@ -44,6 +44,10 @@ class AuthenticateOTPSerializer(serializers.Serializer):
         min_length=4, max_length=10,
         help_text="One-time password sent to the cardholder's phone"
     )
+    eci_flag = serializers.CharField(
+        required=False, allow_null=True, max_length=10,
+        help_text="Electronic Commerce Indicator (optional, typically '07' for Visa)"
+    )
 
 
 class VerifyPaymentSerializer(serializers.Serializer):

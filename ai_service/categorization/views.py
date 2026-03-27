@@ -49,3 +49,39 @@ class CategorizeTransactionView(APIView):
                 'category': category_data
             }
         }, status=status.HTTP_200_OK)
+
+
+class BulkCategorizeTransactionView(APIView):
+    """
+    Accepts a list of transactions to categorize at once.
+    POST /api/v1/categorize/bulk/
+    {
+       "business_id": "uuid",
+       "transactions": [
+          {"description": "AWS monthly", "amount": 50.0, "type": "expense"},
+          ...
+       ]
+    }
+    """
+    def post(self, request, *args, **kwargs):
+        business_id = request.data.get('business_id')
+        transactions = request.data.get('transactions', [])
+
+        if not business_id or not isinstance(transactions, list):
+            return Response(
+                {"success": False, "message": "business_id and a list of transactions are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not transactions:
+            return Response({'success': True, 'data': {'categories': []}})
+            
+        categorized_results = categorize_bulk_with_ai(transactions, business_id)
+        
+        return Response({
+            'success': True,
+            'message': f'Categorized {len(categorized_results)} transactions.',
+            'data': {
+                'categories': categorized_results
+            }
+        }, status=status.HTTP_200_OK)

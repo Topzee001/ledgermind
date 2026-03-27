@@ -106,3 +106,56 @@ def _fallback_categorize(description, trans_type, categories):
         
     # Worst case, just return the name chosen by rules
     return {"id": None, "name": rule_category_name, "source": "rules"}
+
+
+def categorize_bulk_with_ai(transactions, business_id):
+    """
+    Categorize a list of transactions in one or fewer Gemini prompts.
+    :param transactions: List of dicts with {'description', 'amount', 'type'}
+    :param business_id: Business UUID
+    :returns: List of dicts with categorization results
+    """
+    categories = fetch_business_categories(business_id)
+    if not categories:
+        return [{"id": None, "name": "Other", "error": "No categories found"} for _ in transactions]
+        
+    # Categorize using rules for speed or fallback
+    if not gemini_model:
+        return [_fallback_categorize(t['description'], t.get('type', 'expense'), categories) for t in transactions]
+        
+    # Group transactions for AI (Gemini can handle many at once)
+    allowed_categories = [
+        {"id": cat['id'], "name": cat['name'], "type": cat.get('type')} 
+        for cat in categories
+    ]
+    
+    try:
+        # Prompt for batch categorization
+        prompt = (
+            f"You are a financial accounting assistant.\n"
+            f"Categorize the following list of transactions for business {business_id}.\n\n"
+            f"Allowed categories:\n"
+            f"{json.dumps(allowed_categories, indent=2)}\n\n"
+            f"Transactions to categorize:\n"
+            f"{json.dumps(transactions, indent=2)}\n\n"
+            f"Respond with a ONLY a JSON list of objects in order, each with 'id' and 'name' of the matched category."
+        )
+        
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.0,
+                response_mime_type="application/json",
+            ),
+        )
+        
+        results = json.loads(response.text)
+        if isinstance(results, list) and len(results) == len(transactions):
+            return results
+        else:
+            logger.warning(f"Batch AI returned {len(results) if isinstance(results, list) else 'not a list'} entries, expected {len(transactions)}")
+    except Exception as e:
+        logger.error(f"Bulk Gemini error: {e}")
+        
+    # Fallback for all
+    return [_fallback_categorize(t['description'], t.get('type', 'expense'), categories) for t in transactions]
