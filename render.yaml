@@ -163,7 +163,7 @@ services:
           name: ledgermind-user-service
           type: web
           envVarKey: SERVICE_SECRET_KEY
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
 
   # ─── API Gateway ────────────────────────────────────────────────

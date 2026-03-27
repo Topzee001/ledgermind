@@ -1,19 +1,20 @@
 """
-AI Categorization services using OpenAI.
+AI Categorization services using Gemini.
 """
 import json
 import logging
 from django.conf import settings
-from openai import OpenAI
+import google.generativeai as genai
 from .rules import apply_rule_based_categorization
 import requests
 
 logger = logging.getLogger(__name__)
 
-# Try to initialize OpenAI client
-client = None
-if getattr(settings, 'OPENAI_API_KEY', None):
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# Try to initialize Gemini client
+gemini_model = None
+if getattr(settings, 'GEMINI_API_KEY', None):
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
 
 def fetch_business_categories(business_id):
@@ -52,11 +53,12 @@ def categorize_with_ai(description, amount, trans_type, business_id):
     ]
     
     # Fast path/Fallback: AI not configured
-    if not client or not allowed_categories:
+    if not gemini_model or not allowed_categories:
         return _fallback_categorize(description, trans_type, categories)
         
-    # OpenAI Categorization
+    # Gemini Categorization
     try:
+        assert gemini_model is not None
         prompt = (
             f"You are a financial accounting assistant categorizing transactions for an SME.\n"
             f"Transaction details:\n"
@@ -69,19 +71,20 @@ def categorize_with_ai(description, amount, trans_type, business_id):
             f"Respond with ONLY a valid JSON object containing 'id' and 'name' of the matched category."
         )
         
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            response_format={"type": "json_object"}
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.0,
+                response_mime_type="application/json",
+            ),
         )
         
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response.text)
         if 'id' in result and 'name' in result:
             return result
         
     except Exception as e:
-        logger.error(f"OpenAI error: {e}")
+        logger.error(f"Gemini error: {e}")
         
     # Fallback to rules if AI failed
     return _fallback_categorize(description, trans_type, categories)

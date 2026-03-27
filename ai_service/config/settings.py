@@ -93,14 +93,15 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'shared.authentication.JWTServiceAuthentication',
         'shared.authentication.ServiceToServiceAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'shared.permissions.IsServiceRequest',
+        'shared.permissions.IsAuthenticatedUser',
     ),
     'EXCEPTION_HANDLER': 'shared.exceptions.custom_exception_handler',
 }
 
 SERVICE_SECRET_KEY = os.environ.get('SERVICE_SECRET_KEY', 'ledgermind-service-secret-dev')
 TRANSACTION_SERVICE_URL = os.environ.get('TRANSACTION_SERVICE_URL', 'http://localhost:8002')
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')

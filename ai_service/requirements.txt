@@ -9,4 +9,4 @@ whitenoise
 gunicorn
 python-dotenv
 requests
-openai
+google-generativeai

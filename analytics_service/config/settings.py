@@ -97,6 +97,7 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'shared.authentication.JWTServiceAuthentication',
+        'shared.authentication.ServiceToServiceAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'shared.permissions.IsAuthenticatedUser',

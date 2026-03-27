@@ -1,0 +1,38 @@
+Hello @everyone 👋
+
+Welcome to the team.
+
+For this hackathon, the solution we will be building is called LedgerMind — an AI-powered accounting assistant designed to help small and medium-sized businesses (SMEs) and freelancers manage their financial records more effectively.
+
+Many small businesses rely on manual bookkeeping methods or spreadsheets, which often lead to inaccurate records, poor expense tracking, and limited visibility into their financial performance. Without clear financial insights, businesses struggle to monitor cashflow trends, prepare for taxes, or demonstrate financial stability when applying for loans or investments.
+
+LedgerMind addresses this challenge by allowing users to upload financial transaction data, automatically categorize expenses using AI or rule-based systems, and visualize their financial performance through dashboards and predictive insights.
+
+The platform will also provide features such as cashflow forecasting for the next three months and a credit readiness score that helps businesses understand their financial health and potential eligibility for loans.
+
+I have attached the Product Requirements Document (PRD) for everyone to review.
+
+Please take time to go through it so you understand:
+
+• The problem we are solving
+• The target users
+• The platform features
+• The financial data inputs and analytics outputs
+• The expected demo requirements for the hackathon
+
+Hackathon Timeline
+
+Kickoff: March 23rd, 2026
+Build Duration: 5 days
+
+Before the kickoff, we will use this period to understand the product, plan the build, and assign responsibilities.  and we will be using interswitch API where needed in the project, this is an hackaton from interswitch community for developers tho. the interswitch details below: Interswitch hackathon
+Team name: ledgermind
+Quickteller login
+Email: ibrahimsakariyah@gmail.com
+Password: QuickIbro@124
+
+Url: https://business.quickteller.com/signin
+Developer tools integration link from quick teller: https://business.quickteller.com/developertools
+
+
+Api documentation: https://docs.interswitchgroup.com/docs/home

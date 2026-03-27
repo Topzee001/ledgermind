@@ -6,5 +6,5 @@ django-cors-headers
 pytest
 pytest-django
 requests
-openai
+google-generativeai
 python-dotenv

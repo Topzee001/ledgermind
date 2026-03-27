@@ -13,6 +13,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_DIR = BASE_DIR.parent
 sys.path.insert(0, str(SHARED_DIR))
 
+# Load root .env file
+from dotenv import load_dotenv
+load_dotenv(SHARED_DIR / '.env')
+
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
     'ledgermind-user-service-dev-key-change-in-production'
@@ -119,6 +123,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'shared.authentication.ServiceToServiceAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
