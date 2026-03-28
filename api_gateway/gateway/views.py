@@ -14,9 +14,17 @@ def gateway_proxy(request, service, path):
         return JsonResponse({'success': False, 'message': 'Service not found'}, status=404)
         
     upstream_url = settings.SERVICE_MAP[service]
+    if not upstream_url.startswith(('http://', 'https://')):
+        upstream_url = f"https://{upstream_url}"
     
     # Reconstruct the target URL
-    target_url = f"{upstream_url}/api/v1/{service}/{path}"
+    # Ensure there's exactly one slash between upstream_url/api/v1/service and path
+    target_url = f"{upstream_url}/api/v1/{service}"
+    if path:
+        target_url = f"{target_url}/{path}"
+    else:
+        # Most Django endpoints expect a trailing slash
+        target_url = f"{target_url}/"
     
     if request.META.get('QUERY_STRING'):
         target_url += f"?{request.META['QUERY_STRING']}"

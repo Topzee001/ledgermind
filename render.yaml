@@ -46,7 +46,10 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SECRET_KEY
       - key: ALLOWED_HOSTS
         value: "*"
       - key: DATABASE_URL
@@ -63,7 +66,10 @@ services:
           type: web
           property: host
       - key: AI_SERVICE_URL
-        value: "http://localhost:8003"
+        fromService:
+          name: ledgermind-ai-service
+          type: web
+          property: host
 
   # ─── Payment Service ────────────────────────────────────────────
   - type: web
@@ -81,7 +87,10 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SECRET_KEY
       - key: ALLOWED_HOSTS
         value: "*"
       - key: DATABASE_URL
@@ -121,7 +130,10 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SECRET_KEY
       - key: ALLOWED_HOSTS
         value: "*"
       - key: DATABASE_URL
@@ -153,7 +165,10 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SECRET_KEY
       - key: ALLOWED_HOSTS
         value: "*"
       - key: DATABASE_URL
@@ -182,7 +197,10 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true
+        fromService:
+          name: ledgermind-user-service
+          type: web
+          envVarKey: SECRET_KEY
       - key: ALLOWED_HOSTS
         value: "*"
       - key: DATABASE_URL
