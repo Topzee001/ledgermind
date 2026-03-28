@@ -35,7 +35,7 @@ def gateway_proxy(request, service, path):
             url=target_url,
             headers=headers,
             data=request.body,
-            stream=True,
+            stream=False,
             timeout=60,  # Increased timeout for Free Tier wake-up
         )
         
