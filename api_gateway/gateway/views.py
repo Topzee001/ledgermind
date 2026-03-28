@@ -1,3 +1,4 @@
+import gzip
 import requests
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
@@ -39,9 +40,18 @@ def gateway_proxy(request, service, path):
             timeout=60,  # Increased timeout for Free Tier wake-up
         )
         
+        # Decompress gzip content from upstream before forwarding.
+        # We strip 'content-encoding' below, so the body must be plain.
+        content = response.content
+        if response.headers.get('content-encoding', '').lower() == 'gzip':
+            try:
+                content = gzip.decompress(content)
+            except Exception:
+                pass  # If decompression fails, forward as-is
+
         # Build HttpResponse from the upstream response
         proxy_response = HttpResponse(
-            response.content,
+            content,
             status=response.status_code,
             content_type=response.headers.get('content-type', 'application/json')
         )
