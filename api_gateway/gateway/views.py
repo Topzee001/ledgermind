@@ -1,4 +1,3 @@
-import gzip
 import requests
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
@@ -27,8 +26,17 @@ def gateway_proxy(request, service, path):
     
     if request.META.get('QUERY_STRING'):
         target_url = f"{target_url.rstrip('/')}/?{request.META['QUERY_STRING']}"
-        
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']}
+
+    # Strip headers that must not be forwarded to upstream.
+    # Crucially, drop 'accept-encoding' so that `requests` negotiates only
+    # gzip/deflate (which it decompresses automatically).  If we forward
+    # Postman's "br" (Brotli) preference the upstream may return Brotli
+    # data that `requests` cannot decompress, resulting in binary garbage.
+    STRIP_REQUEST_HEADERS = {'host', 'content-length', 'accept-encoding'}
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in STRIP_REQUEST_HEADERS
+    }
     
     try:
         response = requests.request(
@@ -40,18 +48,11 @@ def gateway_proxy(request, service, path):
             timeout=60,  # Increased timeout for Free Tier wake-up
         )
         
-        # Decompress gzip content from upstream before forwarding.
-        # We strip 'content-encoding' below, so the body must be plain.
-        content = response.content
-        if response.headers.get('content-encoding', '').lower() == 'gzip':
-            try:
-                content = gzip.decompress(content)
-            except Exception:
-                pass  # If decompression fails, forward as-is
-
+        # `requests` transparently decompresses gzip/deflate, so
+        # response.content is already plain text at this point.
         # Build HttpResponse from the upstream response
         proxy_response = HttpResponse(
-            content,
+            response.content,
             status=response.status_code,
             content_type=response.headers.get('content-type', 'application/json')
         )
