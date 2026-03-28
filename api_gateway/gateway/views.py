@@ -48,7 +48,14 @@ def gateway_proxy(request, service, path):
         
         # Copy headers from upstream back to client
         for key, value in response.headers.items():
-            if key.lower() not in ['transfer-encoding', 'content-encoding', 'connection']:
+            # Skip architectural headers that Django/Gunicorn should handle or that change after proxying
+            if key.lower() not in [
+                'transfer-encoding', 
+                'content-encoding', 
+                'connection', 
+                'content-length',
+                'server'
+            ]:
                 proxy_response[key] = value
                 
         return proxy_response
