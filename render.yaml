@@ -61,9 +61,9 @@ services:
           type: web
           envVarKey: SERVICE_SECRET_KEY
       - key: USER_SERVICE_URL
-        value: "http://ledgermind-user-service:10000"
+        value: "https://ledgermind-user-service.onrender.com"
       - key: AI_SERVICE_URL
-        value: "http://ledgermind-ai-service:10000"
+        value: "https://ledgermind-ai-service.onrender.com"
 
   # ─── Payment Service ────────────────────────────────────────────
   - type: web
@@ -95,7 +95,7 @@ services:
           type: web
           envVarKey: SERVICE_SECRET_KEY
       - key: TRANSACTION_SERVICE_URL
-        value: "http://ledgermind-transaction-service:10000"
+        value: "https://ledgermind-transaction-service.onrender.com"
       - key: ISW_CLIENT_ID
         sync: false
       - key: ISW_SECRET_KEY
@@ -135,7 +135,7 @@ services:
           type: web
           envVarKey: SERVICE_SECRET_KEY
       - key: TRANSACTION_SERVICE_URL
-        value: "http://ledgermind-transaction-service:10000"
+        value: "https://ledgermind-transaction-service.onrender.com"
 
   # ─── AI Service ───────────────────────────────────────────────
   - type: web
@@ -195,12 +195,12 @@ services:
         sync: false
         
       - key: USER_SERVICE_URL
-        value: "http://ledgermind-user-service:10000"
+        value: "https://ledgermind-user-service.onrender.com"
       - key: AI_SERVICE_URL
-        value: "http://ledgermind-ai-service:10000"
+        value: "https://ledgermind-ai-service.onrender.com"
       - key: ANALYTICS_SERVICE_URL
-        value: "http://ledgermind-analytics-service:10000"
+        value: "https://ledgermind-analytics-service.onrender.com"
       - key: PAYMENT_SERVICE_URL
-        value: "http://ledgermind-payment-service:10000"
+        value: "https://ledgermind-payment-service.onrender.com"
       - key: TRANSACTION_SERVICE_URL
-        value: "http://ledgermind-transaction-service:10000"
+        value: "https://ledgermind-transaction-service.onrender.com"

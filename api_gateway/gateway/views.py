@@ -13,21 +13,19 @@ def gateway_proxy(request, service, path):
     if service not in settings.SERVICE_MAP:
         return JsonResponse({'success': False, 'message': 'Service not found'}, status=404)
         
-    upstream_url = settings.SERVICE_MAP[service]
+    upstream_url = settings.SERVICE_MAP[service].rstrip('/')
     if not upstream_url.startswith(('http://', 'https://')):
         upstream_url = f"https://{upstream_url}"
     
     # Reconstruct the target URL
-    # Ensure there's exactly one slash between upstream_url/api/v1/service and path
-    target_url = f"{upstream_url}/api/v1/{service}"
+    service_prefix = f"api/v1/{service}".rstrip('/')
+    target_url = f"{upstream_url}/{service_prefix}/"
     if path:
-        target_url = f"{target_url}/{path}"
-    else:
-        # Most Django endpoints expect a trailing slash
-        target_url = f"{target_url}/"
+        # path might already have a trailing slash from the regex
+        target_url = f"{upstream_url}/{service_prefix}/{path.lstrip('/')}"
     
     if request.META.get('QUERY_STRING'):
-        target_url += f"?{request.META['QUERY_STRING']}"
+        target_url = f"{target_url.rstrip('/')}/?{request.META['QUERY_STRING']}"
         
     headers = {k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']}
     
@@ -38,7 +36,7 @@ def gateway_proxy(request, service, path):
             headers=headers,
             data=request.body,
             stream=True,
-            timeout=30,
+            timeout=60,  # Increased timeout for Free Tier wake-up
         )
         
         # Build HttpResponse from the upstream response
