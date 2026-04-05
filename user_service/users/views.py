@@ -95,11 +95,20 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 class HealthCheckView(APIView):
-    """Health check endpoint."""
+    """Health check endpoint with database connectivity test."""
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from django.db import connection
+        db_status = 'connected'
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT 1')
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+
         return Response({
-            'status': 'healthy',
+            'status': 'healthy' if db_status == 'connected' else 'degraded',
             'service': 'user-service',
+            'database': db_status,
         })
