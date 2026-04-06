@@ -43,7 +43,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=not DEBUG,  # Disable SSL for local development (DEBUG=True)
         )
     }
 else:
@@ -73,4 +73,14 @@ SERVICE_MAP = {
     'categorize': os.environ.get('AI_SERVICE_URL', 'http://localhost:8003'),
     'analytics': os.environ.get('ANALYTICS_SERVICE_URL', 'http://localhost:8004'),
     'payments': os.environ.get('PAYMENT_SERVICE_URL', 'http://localhost:8005'),
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
 }

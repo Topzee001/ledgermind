@@ -70,7 +70,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=not DEBUG,  # Disable SSL for local development (DEBUG=True)
         )
     }
 else:
@@ -115,3 +115,13 @@ ISW_ENV = os.environ.get('ISW_ENV', 'sandbox') # sandbox or prod
 ISW_BASE_URL = 'https://saturn.interswitchng.com' if ISW_ENV == 'prod' else 'https://qa.interswitchng.com'
 ISW_MERCHANT_CODE = os.environ.get('ISW_MERCHANT_CODE', 'MX6072')  # A common test merchant code
 
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}

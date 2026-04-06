@@ -10,3 +10,5 @@ gunicorn
 python-dotenv
 requests
 openai
+django-redis
+redis

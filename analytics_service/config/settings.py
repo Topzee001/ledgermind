@@ -72,7 +72,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=not DEBUG,  # Disable SSL for local development (DEBUG=True)
         )
     }
 else:
@@ -107,3 +107,20 @@ REST_FRAMEWORK = {
 
 SERVICE_SECRET_KEY = os.environ.get('SERVICE_SECRET_KEY', 'ledgermind-service-secret-dev')
 TRANSACTION_SERVICE_URL = os.environ.get('TRANSACTION_SERVICE_URL', 'http://localhost:8002')
+
+# Redis Cache configuration.
+# REDIS_URL uses database index /3 for analytics (matches docker-compose.yml).
+# KEY_PREFIX namespaces all keys from this service so they never collide
+# with keys from other services that might share the same Redis instance.
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/3'),
+        "TIMEOUT": 300,  # Default TTL: 5 minutes (individual views can override)
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,  # Degrade gracefully if Redis is down
+        },
+        "KEY_PREFIX": "analytics",  # All keys look like: analytics:dashboard:transactions:...
+    }
+}

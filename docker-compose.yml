@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  #  Database
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=ledgermind
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
+  #    Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # healthcheck lets dependent services wait until Redis is actually ready
+    # to accept connections (not just "started" as a container).
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  #    User Service  
+  user-service:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: user_service
+    image: ledgermind-user-service
+    ports:
+      - "8001:8001"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ledgermind
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-user-service
+      - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8001
+
+  #    Transaction Service                           
+  transaction-service:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: transaction_service
+    image: ledgermind-transaction-service
+    ports:
+      - "8002:8002"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ledgermind
+      - REDIS_URL=redis://redis:6379/1
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-transaction-service
+      - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
+      - USER_SERVICE_URL=http://user-service:8001
+      - AI_SERVICE_URL=http://ai-service:8003
+    depends_on:
+      db:
+        condition: service_started
+      user-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8002
+
+  #    AI Service  
+  ai-service:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: ai_service
+    image: ledgermind-ai-service
+    ports:
+      - "8003:8003"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ledgermind
+      - REDIS_URL=redis://redis:6379/2
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-ai-service
+      - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_key_here}
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8003
+
+  #    Analytics Service                             
+  analytics-service:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: analytics_service
+    image: ledgermind-analytics-service
+    ports:
+      - "8004:8004"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ledgermind
+      - REDIS_URL=redis://redis:6379/3
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-analytics-service
+      - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
+      - TRANSACTION_SERVICE_URL=http://transaction-service:8002
+    depends_on:
+      db:
+        condition: service_started
+      transaction-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8004
+
+  #    Payment Service                             
+  payment-service:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: payment_service
+    image: ledgermind-payment-service
+    ports:
+      - "8005:8005"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ledgermind
+      - REDIS_URL=redis://redis:6379/4
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-payment-service
+      - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
+      - TRANSACTION_SERVICE_URL=http://transaction-service:8002
+    depends_on:
+      db:
+        condition: service_started
+      transaction-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8005
+
+  #    API Gateway  
+  api-gateway:
+    build:
+      context: .
+      args:
+        SERVICE_NAME: api_gateway
+    image: ledgermind-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - SECRET_KEY=dev-secret-key-gateway
+      - REDIS_URL=redis://redis:6379/5
+      - USER_SERVICE_URL=http://user-service:8001
+      - TRANSACTION_SERVICE_URL=http://transaction-service:8002
+      - AI_SERVICE_URL=http://ai-service:8003
+      - ANALYTICS_SERVICE_URL=http://analytics-service:8004
+      - PAYMENT_SERVICE_URL=http://payment-service:8005
+    depends_on:
+      user-service:
+        condition: service_started
+      transaction-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8000
+
+volumes:
+  postgres_data:
+  redis_data:

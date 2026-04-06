@@ -29,6 +29,10 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         # Add your frontend URL(s) here
         value: "http://localhost:3000"
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /0 to the end! (e.g., redis://red-...:6379/0)
+        sync: false
 
   # ─── Transaction Service ────────────────────────────────────────
   - type: web
@@ -64,6 +68,10 @@ services:
         value: "https://ledgermind-user-service.onrender.com"
       - key: AI_SERVICE_URL
         value: "https://ledgermind-ai-service.onrender.com"
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /1 to the end! (e.g., redis://red-...:6379/1)
+        sync: false
 
   # ─── Payment Service ────────────────────────────────────────────
   - type: web
@@ -104,6 +112,10 @@ services:
         value: "sandbox"
       - key: ISW_MERCHANT_CODE
         sync: false
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /4 to the end! (e.g., redis://red-...:6379/4)
+        sync: false
 
   # ─── Analytics Service ──────────────────────────────────────────
   - type: web
@@ -136,6 +148,10 @@ services:
           envVarKey: SERVICE_SECRET_KEY
       - key: TRANSACTION_SERVICE_URL
         value: "https://ledgermind-transaction-service.onrender.com"
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /3 to the end! (e.g., redis://red-...:6379/3)
+        sync: false
 
   # ─── AI Service ───────────────────────────────────────────────
   - type: web
@@ -167,6 +183,10 @@ services:
           type: web
           envVarKey: SERVICE_SECRET_KEY
       - key: GEMINI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /2 to the end! (e.g., redis://red-...:6379/2)
         sync: false
 
   # ─── API Gateway ────────────────────────────────────────────────
@@ -204,3 +224,7 @@ services:
         value: "https://ledgermind-payment-service.onrender.com"
       - key: TRANSACTION_SERVICE_URL
         value: "https://ledgermind-transaction-service.onrender.com"
+      - key: REDIS_URL
+        # Paste your Render Redis Internal Connection String here
+        # Make sure to append /5 to the end! (e.g., redis://red-...:6379/5)
+        sync: false

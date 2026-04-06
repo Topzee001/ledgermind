@@ -8,3 +8,5 @@ pytest-django
 requests
 google-generativeai
 python-dotenv
+django-redis
+redis

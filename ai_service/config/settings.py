@@ -69,7 +69,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=not DEBUG,  # Disable SSL for local development (DEBUG=True)
         )
     }
 else:
@@ -105,3 +105,18 @@ REST_FRAMEWORK = {
 SERVICE_SECRET_KEY = os.environ.get('SERVICE_SECRET_KEY', 'ledgermind-service-secret-dev')
 TRANSACTION_SERVICE_URL = os.environ.get('TRANSACTION_SERVICE_URL', 'http://localhost:8002')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+
+# Redis Cache configuration.
+# REDIS_URL uses database index /2 for AI service (matches docker-compose.yml).
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/2'),
+        "TIMEOUT": 300,  # Default TTL: 5 minutes
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,  # Degrade gracefully if Redis is down
+        },
+        "KEY_PREFIX": "ai",  # All keys look like: ai:categories:...
+    }
+}

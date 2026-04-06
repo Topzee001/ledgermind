@@ -9,3 +9,5 @@ whitenoise
 gunicorn
 python-dotenv
 requests
+django-redis
+redis

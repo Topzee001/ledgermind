@@ -1,60 +1,75 @@
-# LedgerMind Backend Microservices
+# 🛡️ LedgerMind Backend Microservices
 
-This is the microservices backend for **LedgerMind** developed with Django REST Framework (DRF) leveraging TDD, built specifically for Interswitch's SME Accounting application.
+This is the microservices backend for **LedgerMind**, an SME Accounting application leveraging TDD and Interswitch integrations. Built with Django REST Framework (DRF) and orchestrated with Docker.
 
-## 🚀 Architecture
+---
 
-The application is structured as a collection of modular services:
+## 🚀 Quick Start (Dockerized Workflow)
 
-| Port | Service | Description | DB Used / Core Dependency |
-|------|---------|-------------|-------------|
-| 8000 | **API Gateway** | Light-weight unified entrypoint proxy | Network Forwarder |
-| 8001 | **User Service** | Auth, JWT, User profiles, Businesses | SQLite (Production PG) |
-| 8002 | **Transaction Service** | Income/Expense & Bank CSV imports | SQLite, Cross-calls AI |
-| 8003 | **AI Service** | OpenAI-powered classification & Rules | Environment Vars / Rules |
-| 8004 | **Analytics Service** | Dashboard, Cashflow Forecasting, Credit Scoring | Cross-calls Transactions |
-| 8005 | **Payment Service** | Interswitch Integration, Invoicing, Webhooks | SQLite, Interswitch API |
+The fastest way to get LedgerMind up and running is using Docker. This spins up all 6 microservices and a dedicated PostgreSQL database automatically.
 
-### Authentication Mechanism
-Microservices communicate using two methods defined in the `/shared` util package:
-- Client to Gateway: JWT Bearer Tokens (`Authorization: Bearer <TOKEN>`)
-- Service to Service: Trusted secret key (`X-Service-Key: <SECRET>`)
+### 1. Requirements
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS, Windows, or Linux)
 
-## 💻 Prerequisites
-- Python 3.9+ 
-- Setup Virtual Env (`python3 -m venv venv && source venv/bin/activate`)
-- Install deps: `pip install -r requirements.txt`
-
-## 🏃 Running the Services locally
-
-You have two options:
-**Option 1: Using the provided bash script** 
+### 2. Initialization
+Run the provided setup script to build images, start containers, and apply all database migrations:
 ```bash
-# Starts all 6 servers using screen/background process logs
-bash start_all.sh
+chmod +x docker_init.sh
+./docker_init.sh
 ```
 
-**Option 2: Manually running them in separate terminals** (Replace 800X with respective port)
-```bash
-cd user_service
-python manage.py runserver 8001
+### 3. Verify Services
+The services will be available at the followings ports:
+| Port | Service | Entrypoint URL |
+|------|---------|-------------|
+| **8000** | **API Gateway** | `http://localhost:8000` |
+| 8001 | User Service | `http://localhost:8001` |
+| 8002 | Transaction Service | `http://localhost:8002` |
+| 8003 | AI Service | `http://localhost:8003` |
+| 8004 | Analytics Service | `http://localhost:8004` |
+| 8005 | Payment Service | `http://localhost:8005` |
+
+---
+
+## 🛠️ Architecture Details
+
+LedgerMind is structured as a collection of modular services that talk to each other over an internal Docker network.
+
+*   **API Gateway:** The single entry point for all frontend requests. It routes traffic to the appropriate service.
+*   **Shared Module:** A common utility package located in `/shared` that provides consistent authentication (`ServiceToServiceAuth`), exceptions, and pagination across all services.
+*   **Database:** A single shared PostgreSQL 15 container for all microservices (optimized for development).
+
+---
+
+## 🧪 Testing with Postman/cURL
+
+To test if everything is working, try registering a new user through the **API Gateway**:
+
+**Endpoint:** `POST http://localhost:8000/api/v1/users/register/`
+
+**Request Body (JSON):**
+```json
+{
+    "email": "dev@ledgermind.io",
+    "password": "StrongPassword123!",
+    "first_name": "Ledger",
+    "last_name": "Mind",
+    "business_name": "LedgerMind Corp"
+}
 ```
 
-## 🧪 Testing (TDD approach)
+---
 
-Every service contains unit tests covering views, services, fallback logic, and mock external API integrations.
+## 🔧 Manual Setup (Traditional Way)
 
-```bash
-cd user_service && pytest -v
-cd ../transaction_service && pytest -v
-cd ../ai_service && pytest -v
-cd ../analytics_service && pytest -v
-cd ../payment_service && pytest -v
-cd ../api_gateway && pytest -v
-```
+If you prefer not to use Docker, follow these steps:
 
-## 🌐 Endpoints via Gateway
-- **Auth:** `POST http://localhost:8000/api/v1/users/register/` -> Creates User Accounts
-- **Transactions:** `GET http://localhost:8000/api/v1/transactions/` -> Lists Ledger
-- **Dashboard:** `GET http://localhost:8000/api/v1/analytics/dashboard/<uuid>/` -> Analytics Stats
-- **Payments:** `POST http://localhost:8000/api/v1/payments/initiate/` -> Directs to Interswitch
+1.  **Setup Virtual Env:** `python3 -m venv venv && source venv/bin/activate`
+2.  **Install dependencies:** `pip install -r requirements.txt`
+3.  **Start all services:** `bash start_all.sh`
+
+---
+
+## 🚦 Troubleshooting
+*   **Port in use:** If you see "Port is already allocated", run `docker-compose down --remove-orphans` to clear old processes.
+*   **DB Migration Errors:** Ensure you've run `./docker_init.sh` to initialize the PostgreSQL database schema.

@@ -1,0 +1,11 @@
+# Ignore common files
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+db.sqlite3
+staticfiles/
+.pytest_cache/
+.DS_Store
