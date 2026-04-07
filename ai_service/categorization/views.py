@@ -5,7 +5,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .services import categorize_with_ai
+from .services import categorize_with_ai, categorize_bulk_with_ai
 
 class CategorizeTransactionView(APIView):
     """
