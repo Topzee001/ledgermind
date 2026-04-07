@@ -3,6 +3,7 @@ Tests for User API endpoints.
 TDD: Red → Green → Refactor
 """
 import pytest
+from unittest.mock import patch
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -224,3 +225,70 @@ class TestUserProfile:
         assert response.status_code == status.HTTP_200_OK
         user.refresh_from_db()
         assert user.email == original_email
+
+
+@pytest.mark.django_db
+class TestUserProfileCaching:
+    """
+    Test suite specifically for TDD validation of Redis Caching.
+    This demonstrates Red -> Green -> Refactor for the caching implementation.
+
+    The view uses key pattern: user:profile:{user_id}
+    - GET  → cache.get(key) → if None: serialize + cache.set(key, data, ttl)
+    - PATCH/PUT → save to DB → cache.delete(key)
+    """
+
+    def test_profile_cache_hit_and_miss(self, authenticated_client):
+        """
+        RED:   Write this test BEFORE implementing caching → it fails because
+               cache.get / cache.set are never called.
+        GREEN: Implement the caching in UserProfileView.retrieve() → test passes.
+
+        Strategy: patch cache.get and cache.set to spy on them.
+        """
+        client, user = authenticated_client
+        cache_key = f"user:profile:{user.id}"
+
+        with patch('users.views.cache.get') as mock_cache_get, \
+             patch('users.views.cache.set') as mock_cache_set:
+
+            # Simulate a cache MISS (first visit — nothing in Redis yet)
+            mock_cache_get.return_value = None
+
+            # First Request → Should MISS cache, FETCH from DB, and SET cache
+            response = client.get(PROFILE_URL)
+            assert response.status_code == status.HTTP_200_OK
+
+            mock_cache_get.assert_called_with(cache_key)
+            assert mock_cache_set.called is True, "Cache was not set after a miss"
+
+            # Simulate a cache HIT for the second request
+            mock_cache_get.return_value = {'email': user.email, 'first_name': 'Hit'}
+            mock_cache_set.reset_mock()
+
+            # Second Request → Should HIT cache and NOT call set again
+            response2 = client.get(PROFILE_URL)
+            assert response2.status_code == status.HTTP_200_OK
+
+            assert mock_cache_set.called is False, "Cache should not be updated on a hit"
+
+    def test_profile_cache_invalidation_on_update(self, authenticated_client):
+        """
+        RED:   Write this test BEFORE adding cache.delete() to the update view.
+        GREEN: Add _invalidate_user_profile_cache(user.id) in update() → passes.
+
+        When the user updates their profile (PATCH), the old cached data
+        must be deleted so the next GET returns fresh data from the DB.
+        """
+        client, user = authenticated_client
+        cache_key = f"user:profile:{user.id}"
+
+        with patch('users.views.cache.delete') as mock_cache_delete:
+            payload = {'first_name': 'NewName'}
+
+            # Update the profile
+            response = client.patch(PROFILE_URL, payload)
+            assert response.status_code == status.HTTP_200_OK
+
+            # Assert that the invalidation explicitly fired
+            mock_cache_delete.assert_called_once_with(cache_key)

@@ -1,8 +1,13 @@
 """
 Tests for Business API endpoints.
 TDD: Red → Green → Refactor
+
+Key changes reflected:
+  - Business list caching in Redis (key: user:businesses:{user_id}).
+  - Cache invalidation on create/update/delete.
 """
 import pytest
+from unittest.mock import patch
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -162,3 +167,80 @@ class TestBusinessDetail:
         api_client.force_authenticate(user=user2)
         response = api_client.get(business_detail_url(business.id))
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestBusinessListCaching:
+    """
+    TDD tests for Redis caching of the business list.
+
+    The cache key pattern is: user:businesses:{user_id}
+    - GET /businesses/  → cache.get(key) → if miss: query DB, cache.set(key)
+    - POST/PUT/DELETE   → cache.delete(key) to invalidate
+    """
+
+    def test_list_cache_hit_and_miss(self, authenticated_client):
+        """
+        RED:   Before implementing caching → cache is never consulted.
+        GREEN: After adding cache logic in list() → test passes.
+        """
+        client, user = authenticated_client
+        cache_key = f"user:businesses:{user.id}"
+
+        Business.objects.create(owner=user, name='Cached Biz', industry='technology')
+
+        with patch('businesses.views.cache.get') as mock_cache_get, \
+             patch('businesses.views.cache.set') as mock_cache_set:
+
+            # Simulate cache MISS
+            mock_cache_get.return_value = None
+
+            response = client.get(BUSINESS_LIST_URL)
+            assert response.status_code == status.HTTP_200_OK
+
+            mock_cache_get.assert_called_with(cache_key)
+            assert mock_cache_set.called is True
+
+            # Simulate cache HIT
+            mock_cache_get.return_value = [{'id': '1', 'name': 'Cached Biz'}]
+            mock_cache_set.reset_mock()
+
+            response2 = client.get(BUSINESS_LIST_URL)
+            assert response2.status_code == status.HTTP_200_OK
+            assert mock_cache_set.called is False
+
+    def test_create_invalidates_cache(self, authenticated_client):
+        """Creating a business invalidates the list cache."""
+        client, user = authenticated_client
+        cache_key = f"user:businesses:{user.id}"
+
+        with patch('businesses.views.cache.delete') as mock_cache_delete:
+            payload = {'name': 'New Biz', 'industry': 'technology'}
+            response = client.post(BUSINESS_LIST_URL, payload)
+            assert response.status_code == status.HTTP_201_CREATED
+
+            mock_cache_delete.assert_called_with(cache_key)
+
+    def test_update_invalidates_cache(self, authenticated_client):
+        """Updating a business invalidates the list cache."""
+        client, user = authenticated_client
+        business = Business.objects.create(owner=user, name='Old', industry='retail')
+        cache_key = f"user:businesses:{user.id}"
+
+        with patch('businesses.views.cache.delete') as mock_cache_delete:
+            response = client.patch(business_detail_url(business.id), {'name': 'New'})
+            assert response.status_code == status.HTTP_200_OK
+
+            mock_cache_delete.assert_called_with(cache_key)
+
+    def test_delete_invalidates_cache(self, authenticated_client):
+        """Deleting a business invalidates the list cache."""
+        client, user = authenticated_client
+        business = Business.objects.create(owner=user, name='Bye', industry='retail')
+        cache_key = f"user:businesses:{user.id}"
+
+        with patch('businesses.views.cache.delete') as mock_cache_delete:
+            response = client.delete(business_detail_url(business.id))
+            assert response.status_code == status.HTTP_204_NO_CONTENT
+
+            mock_cache_delete.assert_called_with(cache_key)

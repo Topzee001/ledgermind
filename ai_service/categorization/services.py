@@ -112,7 +112,7 @@ def categorize_with_ai(description, amount, trans_type, business_id):
 
     # Fast path / Fallback: AI not configured
     if not gemini_model or not allowed_categories:
-        return _fallback_categorize(description, trans_type, categories)
+        return _fallback_categorize(description, trans_type, categories, business_id)
 
     # Gemini Categorization
     try:
@@ -145,11 +145,43 @@ def categorize_with_ai(description, amount, trans_type, business_id):
         logger.error("Gemini error: %s", exc)
 
     # Fallback to rules if AI failed
-    return _fallback_categorize(description, trans_type, categories)
+    return _fallback_categorize(description, trans_type, categories, business_id)
 
 
-def _fallback_categorize(description, trans_type, categories):
-    """Apply keyword rules and map back to an existing category; return 'Other' if no match."""
+def _create_category_in_transaction_service(name, trans_type, business_id):
+    """
+    Create a new category in the Transaction Service and return its data.
+    Returns the created category dict {'id': ..., 'name': ...} or None on failure.
+    """
+    try:
+        url = f"{settings.TRANSACTION_SERVICE_URL}/api/v1/categories/"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Service-Key": settings.SERVICE_SECRET_KEY,
+        }
+        payload = {
+            "name": name,
+            "type": trans_type,
+            "business_id": str(business_id),
+            "description": f"Auto-created by AI categorization for '{name}'",
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=5)
+        if response.status_code in (200, 201):
+            data = response.json()
+            cat = data.get("data", data)
+            if cat.get("id"):
+                # Invalidate the cache so the new category is picked up next time
+                invalidate_categories_cache(business_id)
+                logger.info("Auto-created category '%s' (id=%s) for business %s", name, cat["id"], business_id)
+                return cat
+    except Exception as exc:
+        logger.error("Failed to auto-create category '%s' for business %s: %s", name, business_id, exc)
+    return None
+
+
+def _fallback_categorize(description, trans_type, categories, business_id=None):
+    """Apply keyword rules and map back to an existing category.
+    If no match exists in the DB, auto-create it via the Transaction Service."""
     rule_category_name = apply_rule_based_categorization(description, trans_type)
 
     for cat in categories:
@@ -159,6 +191,12 @@ def _fallback_categorize(description, trans_type, categories):
     other_cat = next((c for c in categories if c["name"].lower() == "other"), None)
     if other_cat:
         return {"id": other_cat["id"], "name": other_cat["name"], "source": "rules-default"}
+
+    # No matching category in DB — auto-create it
+    if business_id:
+        created = _create_category_in_transaction_service(rule_category_name, trans_type, business_id)
+        if created:
+            return {"id": created["id"], "name": created["name"], "source": "rules-auto-created"}
 
     return {"id": None, "name": rule_category_name, "source": "rules"}
 
@@ -174,7 +212,7 @@ def categorize_bulk_with_ai(transactions, business_id):
 
     # Fallback path — no AI
     if not gemini_model:
-        return [_fallback_categorize(t["description"], t.get("type", "expense"), categories) for t in transactions]
+        return [_fallback_categorize(t["description"], t.get("type", "expense"), categories, business_id) for t in transactions]
 
     allowed_categories = [
         {"id": cat["id"], "name": cat["name"], "type": cat.get("type")}
@@ -213,4 +251,4 @@ def categorize_bulk_with_ai(transactions, business_id):
         logger.error("Bulk Gemini error: %s", exc)
 
     # Fallback for all transactions
-    return [_fallback_categorize(t["description"], t.get("type", "expense"), categories) for t in transactions]
+    return [_fallback_categorize(t["description"], t.get("type", "expense"), categories, business_id) for t in transactions]

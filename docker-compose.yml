@@ -98,6 +98,7 @@ services:
       - SECRET_KEY=dev-secret-key-ai-service
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
       - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_key_here}
+      - TRANSACTION_SERVICE_URL=http://transaction-service:8002
     depends_on:
       db:
         condition: service_started
