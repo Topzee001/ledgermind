@@ -31,6 +31,7 @@ class JWTServiceAuthentication(BaseAuthentication):
     """
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization')
+        print(f"JWT Auth Check on {request.path}: Auth Header = {auth_header}", flush=True)
         if not auth_header:
             return None
 

@@ -94,6 +94,26 @@ def fetch_business_categories(business_id: str) -> list:
     return categories
 
 
+def _resolve_category_by_name(name, trans_type, categories, business_id):
+    """Try to find the specific category by name in DB, otherwise auto-create it."""
+    for cat in categories:
+        if cat["name"].lower() == name.lower():
+            return {"id": cat["id"], "name": cat["name"], "source": "ai"}
+
+    if business_id:
+        created = _create_category_in_transaction_service(name, trans_type, business_id)
+        if created:
+            # Add to local list to avoid duplicating in the same bulk operation
+            categories.append(created)
+            return {"id": created["id"], "name": created["name"], "source": "ai-auto-created"}
+
+    other_cat = next((c for c in categories if c["name"].lower() == "other"), None)
+    if other_cat:
+        return {"id": other_cat["id"], "name": other_cat["name"], "source": "ai-default"}
+
+    return {"id": None, "name": name, "source": "ai"}
+
+
 def categorize_with_ai(description, amount, trans_type, business_id):
     """
     Categorize a single transaction using Gemini AI, falling back to
@@ -105,13 +125,13 @@ def categorize_with_ai(description, amount, trans_type, business_id):
 
     # Only offer the AI categories that match this transaction's type
     allowed_categories = [
-        {"id": cat["id"], "name": cat["name"], "description": cat.get("description", "")}
+        {"name": cat["name"], "description": cat.get("description", "")}
         for cat in categories
         if cat.get("type") in [trans_type, "both"]
     ]
 
     # Fast path / Fallback: AI not configured
-    if not gemini_model or not allowed_categories:
+    if not gemini_model:
         return _fallback_categorize(description, trans_type, categories, business_id)
 
     # Gemini Categorization
@@ -125,8 +145,8 @@ def categorize_with_ai(description, amount, trans_type, business_id):
             f"- Type: {trans_type}\n\n"
             f"Allowed categories (JSON list):\n"
             f"{json.dumps(allowed_categories, indent=2)}\n\n"
-            f"Select the most appropriate category from the list above.\n"
-            f"Respond with ONLY a valid JSON object containing 'id' and 'name' of the matched category."
+            f"Select the most appropriate category from the list above. If none fit perfectly, invent a broad and suitable new category name.\n"
+            f"Respond with ONLY a valid JSON object containing the 'name' of the category."
         )
 
         response = gemini_model.generate_content(
@@ -138,8 +158,8 @@ def categorize_with_ai(description, amount, trans_type, business_id):
         )
 
         result = json.loads(response.text)
-        if "id" in result and "name" in result:
-            return result
+        if "name" in result:
+            return _resolve_category_by_name(result["name"], trans_type, categories, business_id)
 
     except Exception as exc:
         logger.error("Gemini error: %s", exc)
@@ -184,19 +204,21 @@ def _fallback_categorize(description, trans_type, categories, business_id=None):
     If no match exists in the DB, auto-create it via the Transaction Service."""
     rule_category_name = apply_rule_based_categorization(description, trans_type)
 
+    # 1. Try to find the exact matched category in DB
     for cat in categories:
         if cat["name"].lower() == rule_category_name.lower():
             return {"id": cat["id"], "name": cat["name"], "source": "rules"}
 
-    other_cat = next((c for c in categories if c["name"].lower() == "other"), None)
-    if other_cat:
-        return {"id": other_cat["id"], "name": other_cat["name"], "source": "rules-default"}
-
-    # No matching category in DB — auto-create it
+    # 2. No matching category in DB — auto-create it!
     if business_id:
         created = _create_category_in_transaction_service(rule_category_name, trans_type, business_id)
         if created:
             return {"id": created["id"], "name": created["name"], "source": "rules-auto-created"}
+
+    # 3. If auto-creation fails or no business_id, fall back to "Other" if it exists
+    other_cat = next((c for c in categories if c["name"].lower() == "other"), None)
+    if other_cat:
+        return {"id": other_cat["id"], "name": other_cat["name"], "source": "rules-default"}
 
     return {"id": None, "name": rule_category_name, "source": "rules"}
 
@@ -207,15 +229,13 @@ def categorize_bulk_with_ai(transactions, business_id):
     The category list is served from the cache just like single categorization.
     """
     categories = fetch_business_categories(business_id)
-    if not categories:
-        return [{"id": None, "name": "Other", "error": "No categories found"} for _ in transactions]
 
     # Fallback path — no AI
     if not gemini_model:
         return [_fallback_categorize(t["description"], t.get("type", "expense"), categories, business_id) for t in transactions]
 
     allowed_categories = [
-        {"id": cat["id"], "name": cat["name"], "type": cat.get("type")}
+        {"name": cat["name"], "type": cat.get("type")}
         for cat in categories
     ]
 
@@ -227,7 +247,8 @@ def categorize_bulk_with_ai(transactions, business_id):
             f"{json.dumps(allowed_categories, indent=2)}\n\n"
             f"Transactions to categorize:\n"
             f"{json.dumps(transactions, indent=2)}\n\n"
-            f"Respond with ONLY a JSON list of objects in order, each with 'id' and 'name' of the matched category."
+            f"For each transaction, select an existing category name or invent a broad, suitable new one. "
+            f"Respond with ONLY a JSON list of objects in the same order, each containing ONLY the 'name' of the matched or new category."
         )
 
         response = gemini_model.generate_content(
@@ -240,7 +261,12 @@ def categorize_bulk_with_ai(transactions, business_id):
 
         results = json.loads(response.text)
         if isinstance(results, list) and len(results) == len(transactions):
-            return results
+            final_results = []
+            for i, res in enumerate(results):
+                ai_name = res.get("name", "Other")
+                cat = _resolve_category_by_name(ai_name, transactions[i].get("type", "expense"), categories, business_id)
+                final_results.append(cat)
+            return final_results
         else:
             logger.warning(
                 "Batch AI returned %s entries, expected %s",

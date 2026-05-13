@@ -43,7 +43,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-user-service
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
     depends_on:
       db:
@@ -67,7 +67,7 @@ services:
       - REDIS_URL=redis://redis:6379/1
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-transaction-service
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
       - USER_SERVICE_URL=http://user-service:8001
       - AI_SERVICE_URL=http://ai-service:8003
@@ -95,7 +95,7 @@ services:
       - REDIS_URL=redis://redis:6379/2
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-ai-service
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
       - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_key_here}
       - TRANSACTION_SERVICE_URL=http://transaction-service:8002
@@ -121,7 +121,7 @@ services:
       - REDIS_URL=redis://redis:6379/3
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-analytics-service
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
       - TRANSACTION_SERVICE_URL=http://transaction-service:8002
     depends_on:
@@ -148,7 +148,7 @@ services:
       - REDIS_URL=redis://redis:6379/4
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-payment-service
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - SERVICE_SECRET_KEY=ledgermind-service-secret-dev
       - TRANSACTION_SERVICE_URL=http://transaction-service:8002
     depends_on:
@@ -173,7 +173,7 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=True
       - ALLOWED_HOSTS=*
-      - SECRET_KEY=dev-secret-key-gateway
+      - SECRET_KEY=shared-dev-secret-key-ledgermind
       - REDIS_URL=redis://redis:6379/5
       - USER_SERVICE_URL=http://user-service:8001
       - TRANSACTION_SERVICE_URL=http://transaction-service:8002

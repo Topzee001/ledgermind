@@ -34,32 +34,22 @@ def _cache_key(business_id: str) -> str:
     return f"dashboard:transactions:{business_id}"
 
 
-def fetch_business_transactions(business_id: str) -> list:
+def fetch_business_transactions(business_id: str, force_refresh: bool = False) -> list:
     """
-    Fetch all transactions for a business from the Transaction Service,
-    using Redis as a cache layer to avoid repeated cross-service HTTP calls.
-
-    Cache flow:
-      1. Check Redis for cached data  →  return immediately if found (CACHE HIT)
-      2. If not found (CACHE MISS)    →  call Transaction Service HTTP endpoint
-      3. Store the result in Redis with a TTL
-      4. Return the data
-
-    Cache invalidation:
-      Call invalidate_business_transactions_cache(business_id) whenever a
-      transaction is created, updated, or deleted (from the Transaction Service).
+    Fetch transactions with an optional force_refresh to bypass cache.
     """
     key = _cache_key(business_id)
 
-    # ── Step 1: Try Cache ──────────────────────────────────────────────────
-    cached = cache.get(key)
-    if cached is not None:
-        logger.debug("Cache HIT for %s", key)
-        return cached
+    # Only check cache if we aren't forcing a refresh
+    if not force_refresh:
+        cached = cache.get(key)
+        if cached is not None:
+            logger.debug("Cache HIT for %s", key)
+            return cached
 
-    # ── Step 2: Cache Miss → fetch from Transaction Service ────────────────
-    logger.debug("Cache MISS for %s — fetching from Transaction Service", key)
-    url = f"{settings.TRANSACTION_SERVICE_URL}/api/v1/transactions/?business_id={business_id}"
+    logger.debug("Fetching fresh data from Transaction Service (Refresh=%s)", force_refresh)
+    # We add limit=1000 to bypass the default 20-row pagination for analytics calculations
+    url = f"{settings.TRANSACTION_SERVICE_URL}/api/v1/transactions/?business_id={business_id}&limit=1000"
     headers = {
         "X-Service-Key": settings.SERVICE_SECRET_KEY,
         "Accept": "application/json",

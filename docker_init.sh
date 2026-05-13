@@ -28,7 +28,7 @@ run_migrate analytics-service
 run_migrate payment-service
 run_migrate api-gateway
 
-echo "✅ All services are migrated and running!"
-echo "🌐 API Gateway is available at: http://localhost:8000"
-echo "👤 User Service is available at: http://localhost:8001"
-echo "💰 Transaction Service is available at: http://localhost:8002"
+echo "All services are migrated and running!"
+echo "API Gateway is available at: http://localhost:8000"
+echo "User Service is available at: http://localhost:8001"
+echo "Transaction Service is available at: http://localhost:8002"

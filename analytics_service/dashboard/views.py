@@ -21,7 +21,8 @@ class DashboardDataView(APIView):
     Response is derived from cached transaction data (up to 5 min stale).
     """
     def get(self, request, business_id):
-        transactions = fetch_business_transactions(business_id)
+        refresh = request.query_params.get("refresh", "false").lower() == "true"
+        transactions = fetch_business_transactions(business_id, force_refresh=refresh)
 
         total_income = 0
         total_expense = 0
@@ -32,14 +33,17 @@ class DashboardDataView(APIView):
             txn_date = txn.get("date", "")[:7]  # YYYY-MM
             amount = float(txn.get("amount", 0))
             is_income = txn.get("type") == "income"
-            category_name = txn.get("category_detail", {}).get("name", "Uncategorized")
+            cat_detail = txn.get("category_detail")
+            category_name = cat_detail.get("name") if isinstance(cat_detail, dict) else "Uncategorized"
+            if not category_name and txn.get("category"):
+                 category_name = "Categorized (Other)"
 
             if is_income:
                 total_income += amount
                 monthly_trends[txn_date]["income"] += amount
             else:
                 total_expense += amount
-                category_breakdown[category_name] += amount
+                category_breakdown[category_name or "Uncategorized"] += amount
                 monthly_trends[txn_date]["expense"] += amount
 
         net_profit = total_income - total_expense

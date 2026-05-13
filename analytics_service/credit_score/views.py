@@ -11,7 +11,8 @@ class CreditScoreView(APIView):
     GET /api/v1/analytics/credit-score/{business_id}/
     """
     def get(self, request, business_id):
-        transactions = fetch_business_transactions(business_id)
+        refresh = request.query_params.get("refresh", "false").lower() == "true"
+        transactions = fetch_business_transactions(business_id, force_refresh=refresh)
         
         # Very basic rules algorithm:
         # Base score 50

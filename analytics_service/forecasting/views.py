@@ -14,7 +14,8 @@ class CashflowForecastView(APIView):
     GET /api/v1/analytics/forecasting/cashflow/{business_id}/
     """
     def get(self, request, business_id):
-        transactions = fetch_business_transactions(business_id)
+        refresh = request.query_params.get("refresh", "false").lower() == "true"
+        transactions = fetch_business_transactions(business_id, force_refresh=refresh)
         
         monthly_net = defaultdict(float)
         monthly_income = defaultdict(float)
